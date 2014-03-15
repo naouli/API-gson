@@ -40,6 +40,15 @@ public final class JsonArray extends JsonElement implements Iterable<JsonElement
     elements = new ArrayList<JsonElement>();
   }
 
+  @Override
+  JsonArray deepCopy() {
+    JsonArray result = new JsonArray();
+    for (JsonElement element : elements) {
+      result.add(element.deepCopy());
+    }
+    return result;
+  }
+
   /**
    * Adds the specified element to self.
    *

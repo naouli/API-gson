@@ -17,10 +17,17 @@
 package com.google.gson.stream;
 
 import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.ArrayList;
-import java.util.List;
+
+import static com.google.gson.stream.JsonScope.DANGLING_NAME;
+import static com.google.gson.stream.JsonScope.EMPTY_ARRAY;
+import static com.google.gson.stream.JsonScope.EMPTY_DOCUMENT;
+import static com.google.gson.stream.JsonScope.EMPTY_OBJECT;
+import static com.google.gson.stream.JsonScope.NONEMPTY_ARRAY;
+import static com.google.gson.stream.JsonScope.NONEMPTY_DOCUMENT;
+import static com.google.gson.stream.JsonScope.NONEMPTY_OBJECT;
 
 /**
  * Writes a JSON (<a href="http://www.ietf.org/rfc/rfc4627.txt">RFC 4627</a>)
@@ -120,14 +127,47 @@ import java.util.List;
  * @author Jesse Wilson
  * @since 1.6
  */
-public class JsonWriter implements Closeable {
+public class JsonWriter implements Closeable, Flushable {
+
+  /*
+   * From RFC 4627, "All Unicode characters may be placed within the
+   * quotation marks except for the characters that must be escaped:
+   * quotation mark, reverse solidus, and the control characters
+   * (U+0000 through U+001F)."
+   *
+   * We also escape '\u2028' and '\u2029', which JavaScript interprets as
+   * newline characters. This prevents eval() from failing with a syntax
+   * error. http://code.google.com/p/google-gson/issues/detail?id=341
+   */
+  private static final String[] REPLACEMENT_CHARS;
+  private static final String[] HTML_SAFE_REPLACEMENT_CHARS;
+  static {
+    REPLACEMENT_CHARS = new String[128];
+    for (int i = 0; i <= 0x1f; i++) {
+      REPLACEMENT_CHARS[i] = String.format("\\u%04x", (int) i);
+    }
+    REPLACEMENT_CHARS['"'] = "\\\"";
+    REPLACEMENT_CHARS['\\'] = "\\\\";
+    REPLACEMENT_CHARS['\t'] = "\\t";
+    REPLACEMENT_CHARS['\b'] = "\\b";
+    REPLACEMENT_CHARS['\n'] = "\\n";
+    REPLACEMENT_CHARS['\r'] = "\\r";
+    REPLACEMENT_CHARS['\f'] = "\\f";
+    HTML_SAFE_REPLACEMENT_CHARS = REPLACEMENT_CHARS.clone();
+    HTML_SAFE_REPLACEMENT_CHARS['<'] = "\\u003c";
+    HTML_SAFE_REPLACEMENT_CHARS['>'] = "\\u003e";
+    HTML_SAFE_REPLACEMENT_CHARS['&'] = "\\u0026";
+    HTML_SAFE_REPLACEMENT_CHARS['='] = "\\u003d";
+    HTML_SAFE_REPLACEMENT_CHARS['\''] = "\\u0027";
+  }
 
   /** The output data, containing at most one top-level array or object. */
   private final Writer out;
 
-  private final List<JsonScope> stack = new ArrayList<JsonScope>();
+  private int[] stack = new int[32];
+  private int stackSize = 0;
   {
-    stack.add(JsonScope.EMPTY_DOCUMENT);
+    push(EMPTY_DOCUMENT);
   }
 
   /**
@@ -245,7 +285,7 @@ public class JsonWriter implements Closeable {
    */
   public JsonWriter beginArray() throws IOException {
     writeDeferredName();
-    return open(JsonScope.EMPTY_ARRAY, "[");
+    return open(EMPTY_ARRAY, "[");
   }
 
   /**
@@ -254,7 +294,7 @@ public class JsonWriter implements Closeable {
    * @return this writer.
    */
   public JsonWriter endArray() throws IOException {
-    return close(JsonScope.EMPTY_ARRAY, JsonScope.NONEMPTY_ARRAY, "]");
+    return close(EMPTY_ARRAY, NONEMPTY_ARRAY, "]");
   }
 
   /**
@@ -265,7 +305,7 @@ public class JsonWriter implements Closeable {
    */
   public JsonWriter beginObject() throws IOException {
     writeDeferredName();
-    return open(JsonScope.EMPTY_OBJECT, "{");
+    return open(EMPTY_OBJECT, "{");
   }
 
   /**
@@ -274,16 +314,16 @@ public class JsonWriter implements Closeable {
    * @return this writer.
    */
   public JsonWriter endObject() throws IOException {
-    return close(JsonScope.EMPTY_OBJECT, JsonScope.NONEMPTY_OBJECT, "}");
+    return close(EMPTY_OBJECT, NONEMPTY_OBJECT, "}");
   }
 
   /**
    * Enters a new scope by appending any necessary whitespace and the given
    * bracket.
    */
-  private JsonWriter open(JsonScope empty, String openBracket) throws IOException {
+  private JsonWriter open(int empty, String openBracket) throws IOException {
     beforeValue(true);
-    stack.add(empty);
+    push(empty);
     out.write(openBracket);
     return this;
   }
@@ -292,17 +332,17 @@ public class JsonWriter implements Closeable {
    * Closes the current scope by appending any necessary whitespace and the
    * given bracket.
    */
-  private JsonWriter close(JsonScope empty, JsonScope nonempty, String closeBracket)
+  private JsonWriter close(int empty, int nonempty, String closeBracket)
       throws IOException {
-    JsonScope context = peek();
+    int context = peek();
     if (context != nonempty && context != empty) {
-      throw new IllegalStateException("Nesting problem: " + stack);
+      throw new IllegalStateException("Nesting problem.");
     }
     if (deferredName != null) {
       throw new IllegalStateException("Dangling name: " + deferredName);
     }
 
-    stack.remove(stack.size() - 1);
+    stackSize--;
     if (context == nonempty) {
       newline();
     }
@@ -310,18 +350,30 @@ public class JsonWriter implements Closeable {
     return this;
   }
 
+  private void push(int newTop) {
+    if (stackSize == stack.length) {
+      int[] newStack = new int[stackSize * 2];
+      System.arraycopy(stack, 0, newStack, 0, stackSize);
+      stack = newStack;
+    }
+    stack[stackSize++] = newTop;
+  }
+
   /**
    * Returns the value on the top of the stack.
    */
-  private JsonScope peek() {
-    return stack.get(stack.size() - 1);
+  private int peek() {
+    if (stackSize == 0) {
+      throw new IllegalStateException("JsonWriter is closed.");
+    }
+    return stack[stackSize - 1];
   }
 
   /**
    * Replace the value on the top of the stack with the given value.
    */
-  private void replaceTop(JsonScope topOfStack) {
-    stack.set(stack.size() - 1, topOfStack);
+  private void replaceTop(int topOfStack) {
+    stack[stackSize - 1] = topOfStack;
   }
 
   /**
@@ -336,6 +388,9 @@ public class JsonWriter implements Closeable {
     }
     if (deferredName != null) {
       throw new IllegalStateException();
+    }
+    if (stackSize == 0) {
+      throw new IllegalStateException("JsonWriter is closed.");
     }
     deferredName = name;
     return this;
@@ -453,6 +508,9 @@ public class JsonWriter implements Closeable {
    * and flushes that writer.
    */
   public void flush() throws IOException {
+    if (stackSize == 0) {
+      throw new IllegalStateException("JsonWriter is closed.");
+    }
     out.flush();
   }
 
@@ -464,78 +522,41 @@ public class JsonWriter implements Closeable {
   public void close() throws IOException {
     out.close();
 
-    if (peek() != JsonScope.NONEMPTY_DOCUMENT) {
+    int size = stackSize;
+    if (size > 1 || size == 1 && stack[size - 1] != NONEMPTY_DOCUMENT) {
       throw new IOException("Incomplete document");
     }
+    stackSize = 0;
   }
 
   private void string(String value) throws IOException {
+    String[] replacements = htmlSafe ? HTML_SAFE_REPLACEMENT_CHARS : REPLACEMENT_CHARS;
     out.write("\"");
-    for (int i = 0, length = value.length(); i < length; i++) {
+    int last = 0;
+    int length = value.length();
+    for (int i = 0; i < length; i++) {
       char c = value.charAt(i);
-
-      /*
-       * From RFC 4627, "All Unicode characters may be placed within the
-       * quotation marks except for the characters that must be escaped:
-       * quotation mark, reverse solidus, and the control characters
-       * (U+0000 through U+001F)."
-       *
-       * We also escape '\u2028' and '\u2029', which JavaScript interprets as
-       * newline characters. This prevents eval() from failing with a syntax
-       * error. http://code.google.com/p/google-gson/issues/detail?id=341
-       */
-      switch (c) {
-      case '"':
-      case '\\':
-        out.write('\\');
-        out.write(c);
-        break;
-
-      case '\t':
-        out.write("\\t");
-        break;
-
-      case '\b':
-        out.write("\\b");
-        break;
-
-      case '\n':
-        out.write("\\n");
-        break;
-
-      case '\r':
-        out.write("\\r");
-        break;
-
-      case '\f':
-        out.write("\\f");
-        break;
-
-      case '<':
-      case '>':
-      case '&':
-      case '=':
-      case '\'':
-        if (htmlSafe) {
-          out.write(String.format("\\u%04x", (int) c));
-        } else {
-          out.write(c);
+      String replacement;
+      if (c < 128) {
+        replacement = replacements[c];
+        if (replacement == null) {
+          continue;
         }
-        break;
-
-      case '\u2028':
-      case '\u2029':
-        out.write(String.format("\\u%04x", (int) c));
-        break;
-
-      default:
-        if (c <= 0x1F) {
-          out.write(String.format("\\u%04x", (int) c));
-        } else {
-          out.write(c);
-        }
-        break;
+      } else if (c == '\u2028') {
+        replacement = "\\u2028";
+      } else if (c == '\u2029') {
+        replacement = "\\u2029";
+      } else {
+        continue;
       }
+      if (last < i) {
+        out.write(value, last, i - last);
+      }
+      out.write(replacement);
+      last = i + 1;
+    }
+    if (last < length) {
+      out.write(value, last, length - last);
     }
     out.write("\"");
   }
@@ -546,7 +567,7 @@ public class JsonWriter implements Closeable {
     }
 
     out.write("\n");
-    for (int i = 1; i < stack.size(); i++) {
+    for (int i = 1, size = stackSize; i < size; i++) {
       out.write(indent);
     }
   }
@@ -556,14 +577,14 @@ public class JsonWriter implements Closeable {
    * adjusts the stack to expect the name's value.
    */
   private void beforeName() throws IOException {
-    JsonScope context = peek();
-    if (context == JsonScope.NONEMPTY_OBJECT) { // first in object
+    int context = peek();
+    if (context == NONEMPTY_OBJECT) { // first in object
       out.write(',');
-    } else if (context != JsonScope.EMPTY_OBJECT) { // not in an object!
-      throw new IllegalStateException("Nesting problem: " + stack);
+    } else if (context != EMPTY_OBJECT) { // not in an object!
+      throw new IllegalStateException("Nesting problem.");
     }
     newline();
-    replaceTop(JsonScope.DANGLING_NAME);
+    replaceTop(DANGLING_NAME);
   }
 
   /**
@@ -574,18 +595,25 @@ public class JsonWriter implements Closeable {
    * @param root true if the value is a new array or object, the two values
    *     permitted as top-level elements.
    */
+  @SuppressWarnings("fallthrough")
   private void beforeValue(boolean root) throws IOException {
     switch (peek()) {
+    case NONEMPTY_DOCUMENT:
+      if (!lenient) {
+        throw new IllegalStateException(
+            "JSON must have only one top-level value.");
+      }
+      // fall-through
     case EMPTY_DOCUMENT: // first in document
       if (!lenient && !root) {
         throw new IllegalStateException(
             "JSON must start with an array or an object.");
       }
-      replaceTop(JsonScope.NONEMPTY_DOCUMENT);
+      replaceTop(NONEMPTY_DOCUMENT);
       break;
 
     case EMPTY_ARRAY: // first in array
-      replaceTop(JsonScope.NONEMPTY_ARRAY);
+      replaceTop(NONEMPTY_ARRAY);
       newline();
       break;
 
@@ -596,15 +624,11 @@ public class JsonWriter implements Closeable {
 
     case DANGLING_NAME: // value for name
       out.append(separator);
-      replaceTop(JsonScope.NONEMPTY_OBJECT);
+      replaceTop(NONEMPTY_OBJECT);
       break;
 
-    case NONEMPTY_DOCUMENT:
-        throw new IllegalStateException(
-            "JSON must have only one top-level value.");
-
     default:
-      throw new IllegalStateException("Nesting problem: " + stack);
+      throw new IllegalStateException("Nesting problem.");
     }
   }
 }

@@ -50,7 +50,8 @@ public final class Streams {
       if (isEmpty) {
         return JsonNull.INSTANCE;
       }
-      throw new JsonIOException(e);
+      // The stream ended prematurely so it is likely a syntax error.
+      throw new JsonSyntaxException(e);
     } catch (MalformedJsonException e) {
       throw new JsonSyntaxException(e);
     } catch (IOException e) {
@@ -75,7 +76,7 @@ public final class Streams {
    * Adapts an {@link Appendable} so it can be passed anywhere a {@link Writer}
    * is used.
    */
-  private static class AppendableWriter extends Writer {
+  private static final class AppendableWriter extends Writer {
     private final Appendable appendable;
     private final CurrentWrite currentWrite = new CurrentWrite();
 

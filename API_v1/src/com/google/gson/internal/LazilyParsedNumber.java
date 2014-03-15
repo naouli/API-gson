@@ -15,14 +15,14 @@
  */
 package com.google.gson.internal;
 
-import java.math.BigInteger;
+import java.io.ObjectStreamException;
+import java.math.BigDecimal;
 
 /**
  * This class holds a number value that is lazily converted to a specific number type
  *
  * @author Inderjeet Singh
  */
-@SuppressWarnings("serial")
 public final class LazilyParsedNumber extends Number {
   private final String value;
 
@@ -38,7 +38,7 @@ public final class LazilyParsedNumber extends Number {
       try {
         return (int) Long.parseLong(value);
       } catch (NumberFormatException nfe) {
-        return new BigInteger(value).intValue(); 
+        return new BigDecimal(value).intValue();
       }
     }
   }
@@ -48,7 +48,7 @@ public final class LazilyParsedNumber extends Number {
     try {
       return Long.parseLong(value);
     } catch (NumberFormatException e) {
-      return new BigInteger(value).longValue(); 
+      return new BigDecimal(value).longValue();
     }
   }
 
@@ -65,5 +65,14 @@ public final class LazilyParsedNumber extends Number {
   @Override
   public String toString() {
     return value;
+  }
+
+  /**
+   * If somebody is unlucky enough to have to serialize one of these, serialize
+   * it as a BigDecimal so that they won't need Gson on the other side to
+   * deserialize it.
+   */
+  private Object writeReplace() throws ObjectStreamException {
+    return new BigDecimal(value);
   }
 }

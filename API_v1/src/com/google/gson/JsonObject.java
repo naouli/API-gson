@@ -16,8 +16,8 @@
 
 package com.google.gson;
 
-import com.google.gson.internal.$Gson$Preconditions;
-import java.util.LinkedHashMap;
+import com.google.gson.internal.LinkedTreeMap;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -30,16 +30,16 @@ import java.util.Set;
  * @author Joel Leitch
  */
 public final class JsonObject extends JsonElement {
-  // We are using a linked hash map because it is important to preserve
-  // the order in which elements are inserted. This is needed to ensure
-  // that the fields of an object are inserted in the order they were
-  // defined in the class.
-  private final Map<String, JsonElement> members = new LinkedHashMap<String, JsonElement>();
+  private final LinkedTreeMap<String, JsonElement> members =
+      new LinkedTreeMap<String, JsonElement>();
 
-  /**
-   * Creates an empty JsonObject.
-   */
-  public JsonObject() {
+  @Override
+  JsonObject deepCopy() {
+    JsonObject result = new JsonObject();
+    for (Map.Entry<String, JsonElement> entry : members.entrySet()) {
+      result.add(entry.getKey(), entry.getValue().deepCopy());
+    }
+    return result;
   }
 
   /**
@@ -54,7 +54,7 @@ public final class JsonObject extends JsonElement {
     if (value == null) {
       value = JsonNull.INSTANCE;
     }
-    members.put($Gson$Preconditions.checkNotNull(property), value);
+    members.put(property, value);
   }
 
   /**
@@ -149,11 +149,7 @@ public final class JsonObject extends JsonElement {
    * @return the member matching the name. Null if no such member exists.
    */
   public JsonElement get(String memberName) {
-    if (members.containsKey(memberName)) {
-      JsonElement member = members.get(memberName);
-      return member == null ? JsonNull.INSTANCE : member;
-    }
-    return null;
+    return members.get(memberName);
   }
 
   /**

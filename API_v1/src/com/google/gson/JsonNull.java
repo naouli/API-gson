@@ -40,6 +40,11 @@ public final class JsonNull extends JsonElement {
     // Do nothing
   }
 
+  @Override
+  JsonNull deepCopy() {
+    return INSTANCE;
+  }
+
   /**
    * All instances of JsonNull have the same hash code since they are indistinguishable
    */

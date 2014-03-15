@@ -16,6 +16,9 @@
 
 package com.google.gson.internal.bind;
 
+import com.google.gson.Gson;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
 import com.google.gson.internal.$Gson$Types;
 import com.google.gson.internal.ConstructorConstructor;
 import com.google.gson.internal.ObjectConstructor;
@@ -30,14 +33,14 @@ import java.util.Collection;
 /**
  * Adapt a homogeneous collection of objects.
  */
-public final class CollectionTypeAdapterFactory implements TypeAdapter.Factory {
+public final class CollectionTypeAdapterFactory implements TypeAdapterFactory {
   private final ConstructorConstructor constructorConstructor;
 
   public CollectionTypeAdapterFactory(ConstructorConstructor constructorConstructor) {
     this.constructorConstructor = constructorConstructor;
   }
 
-  public <T> TypeAdapter<T> create(MiniGson context, TypeToken<T> typeToken) {
+  public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
     Type type = typeToken.getType();
 
     Class<? super T> rawType = typeToken.getRawType();
@@ -46,19 +49,19 @@ public final class CollectionTypeAdapterFactory implements TypeAdapter.Factory {
     }
 
     Type elementType = $Gson$Types.getCollectionElementType(type, rawType);
-    TypeAdapter<?> elementTypeAdapter = context.getAdapter(TypeToken.get(elementType));
-    ObjectConstructor<T> constructor = constructorConstructor.getConstructor(typeToken);
+    TypeAdapter<?> elementTypeAdapter = gson.getAdapter(TypeToken.get(elementType));
+    ObjectConstructor<T> constructor = constructorConstructor.get(typeToken);
 
     @SuppressWarnings({"unchecked", "rawtypes"}) // create() doesn't define a type parameter
-    TypeAdapter<T> result = new Adapter(context, elementType, elementTypeAdapter, constructor);
+    TypeAdapter<T> result = new Adapter(gson, elementType, elementTypeAdapter, constructor);
     return result;
   }
 
-  private final class Adapter<E> extends TypeAdapter<Collection<E>> {
+  private static final class Adapter<E> extends TypeAdapter<Collection<E>> {
     private final TypeAdapter<E> elementTypeAdapter;
     private final ObjectConstructor<? extends Collection<E>> constructor;
 
-    public Adapter(MiniGson context, Type elementType,
+    public Adapter(Gson context, Type elementType,
         TypeAdapter<E> elementTypeAdapter,
         ObjectConstructor<? extends Collection<E>> constructor) {
       this.elementTypeAdapter =
@@ -66,33 +69,33 @@ public final class CollectionTypeAdapterFactory implements TypeAdapter.Factory {
       this.constructor = constructor;
     }
 
-    public Collection<E> read(JsonReader reader) throws IOException {
-      if (reader.peek() == JsonToken.NULL) {
-        reader.nextNull();
+    public Collection<E> read(JsonReader in) throws IOException {
+      if (in.peek() == JsonToken.NULL) {
+        in.nextNull();
         return null;
       }
 
       Collection<E> collection = constructor.construct();
-      reader.beginArray();
-      while (reader.hasNext()) {
-        E instance = elementTypeAdapter.read(reader);
+      in.beginArray();
+      while (in.hasNext()) {
+        E instance = elementTypeAdapter.read(in);
         collection.add(instance);
       }
-      reader.endArray();
+      in.endArray();
       return collection;
     }
 
-    public void write(JsonWriter writer, Collection<E> collection) throws IOException {
+    public void write(JsonWriter out, Collection<E> collection) throws IOException {
       if (collection == null) {
-        writer.nullValue(); // TODO: better policy here?
+        out.nullValue();
         return;
       }
 
-      writer.beginArray();
+      out.beginArray();
       for (E element : collection) {
-        elementTypeAdapter.write(writer, element);
+        elementTypeAdapter.write(out, element);
       }
-      writer.endArray();
+      out.endArray();
     }
   }
 }
