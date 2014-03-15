@@ -18,9 +18,10 @@ package com.google.gson;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.util.Collection;
 
 /**
- * A simple implementation of the {@link FieldNamingStrategy} interface such that it does not
+ * A simple implementation of the {@link FieldNamingStrategy2} interface such that it does not
  * perform any string translation of the incoming field name.
  *
  * <p>The following is an example:</p>
@@ -37,14 +38,14 @@ import java.lang.reflect.Type;
  * assert("integerField".equals(translatedFieldName));
  * </pre>
  *
- * <p>This is the default {@link FieldNamingStrategy} used by Gson.</p>
+ * <p>This is the default {@link FieldNamingStrategy2} used by Gson.</p>
  *
  * @author Joel Leitch
  */
-class JavaFieldNamingPolicy extends RecursiveFieldNamingPolicy {
+final class JavaFieldNamingPolicy extends RecursiveFieldNamingPolicy {
 
   @Override
-  protected String translateName(String target, Type fieldType, Annotation[] annotations) {
+  protected String translateName(String target, Type fieldType, Collection<Annotation> annotations) {
     return target;
   }
 }
