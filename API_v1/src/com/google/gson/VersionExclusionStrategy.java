@@ -17,9 +17,8 @@
 package com.google.gson;
 
 import com.google.gson.annotations.Since;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
+import com.google.gson.annotations.Until;
+import com.google.gson.internal.$Gson$Preconditions;
 
 /**
  * This strategy will exclude any files and/or class that are passed the
@@ -30,26 +29,38 @@ import java.lang.reflect.Field;
 final class VersionExclusionStrategy implements ExclusionStrategy {
   private final double version;
 
-  public VersionExclusionStrategy(double version) {
-    Preconditions.checkArgument(version >= 0.0D);
+  VersionExclusionStrategy(double version) {
+    $Gson$Preconditions.checkArgument(version >= 0.0D);
     this.version = version;
   }
 
-  public boolean shouldSkipField(Field f) {
-    return !isValidVersion(f.getAnnotations());
+  public boolean shouldSkipField(FieldAttributes f) {
+    return !isValidVersion(f.getAnnotation(Since.class), f.getAnnotation(Until.class));
   }
 
   public boolean shouldSkipClass(Class<?> clazz) {
-    return !isValidVersion(clazz.getAnnotations());
+    return !isValidVersion(clazz.getAnnotation(Since.class), clazz.getAnnotation(Until.class));
   }
 
-  private boolean isValidVersion(Annotation[] annotations) {
-    for (Annotation annotation : annotations) {
-      if (annotation instanceof Since) {
-        double annotationVersion = ((Since) annotation).value();
-        if (annotationVersion > version) {
-          return false;
-        }
+  private boolean isValidVersion(Since since, Until until) {
+    return (isValidSince(since) && isValidUntil(until));
+  }
+
+  private boolean isValidSince(Since annotation) {
+    if (annotation != null) {
+      double annotationVersion = annotation.value();
+      if (annotationVersion > version) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean isValidUntil(Until annotation) {
+    if (annotation != null) {
+      double annotationVersion = annotation.value();
+      if (annotationVersion <= version) {
+        return false;
       }
     }
     return true;
