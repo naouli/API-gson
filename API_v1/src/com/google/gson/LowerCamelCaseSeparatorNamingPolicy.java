@@ -17,7 +17,7 @@
 package com.google.gson;
 
 /**
- * A {@link FieldNamingStrategy2} that ensures the JSON field names consist of only
+ * A {@link FieldNamingStrategy} that ensures the JSON field names consist of only
  * lower case letters and are separated by a particular {@code separatorString}.
  *
  *<p>The following is an example:</p>
@@ -35,7 +35,7 @@ package com.google.gson;
  *
  * @author Joel Leitch
  */
-final class LowerCamelCaseSeparatorNamingPolicy extends CompositionFieldNamingPolicy {
+class LowerCamelCaseSeparatorNamingPolicy extends CompositionFieldNamingPolicy {
 
   public LowerCamelCaseSeparatorNamingPolicy(String separatorString) {
     super(new CamelCaseSeparatorNamingPolicy(separatorString), new LowerCaseNamingPolicy());

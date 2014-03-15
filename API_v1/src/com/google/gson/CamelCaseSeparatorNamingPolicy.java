@@ -16,11 +16,8 @@
 
 package com.google.gson;
 
-import com.google.gson.internal.$Gson$Preconditions;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.Collection;
 
 /**
  * Converts the field name that uses camel-case define word separation into separate words that
@@ -50,17 +47,16 @@ final class CamelCaseSeparatorNamingPolicy extends RecursiveFieldNamingPolicy {
    *
    * @param separatorString the string value to place between words
    * @throws IllegalArgumentException thrown if the {@code separatorString} parameter
-   *         is null or empty.
+   *         is null or purely whitespace.
    */
   public CamelCaseSeparatorNamingPolicy(String separatorString) {
-    $Gson$Preconditions.checkNotNull(separatorString);
-    $Gson$Preconditions.checkArgument(!"".equals(separatorString));
+    Preconditions.checkNotNull(separatorString);
+    Preconditions.checkArgument(!"".equals(separatorString.trim()));
     this.separatorString = separatorString;
   }
 
   @Override
-  protected String translateName(String target, Type fieldType,
-      Collection<Annotation> annnotations) {
+  protected String translateName(String target, Type fieldType, Annotation[] annnotations) {
     StringBuilder translation = new StringBuilder();
     for (int i = 0; i < target.length(); i++) {
       char character = target.charAt(i);

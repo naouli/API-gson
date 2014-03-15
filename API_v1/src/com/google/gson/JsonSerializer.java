@@ -43,13 +43,13 @@ import java.lang.reflect.Type;
  * </pre></p>
  *
  * <p>The default serialization of {@code Id(com.foo.MyObject.class, 20L)} will be
- * <code>{"clazz":com.foo.MyObject,"value":20}</code>. Suppose, you just want the output to be
- * the value instead, which is {@code 20} in this case. You can achieve that by writing a custom
+ * {@code {"clazz":com.foo.MyObject,"value":20}}. Suppose, you just want the output to be the
+ * value instead, which is {@code 20} in this case. You can achieve that by writing a custom
  * serializer:</p>
  *
  * <p><pre>
  * class IdSerializer implements JsonSerializer&lt;Id&gt;() {
- *   public JsonElement serialize(Id id, Type typeOfId, JsonSerializationContext context) {
+ *   public JsonElement toJson(Id id, Type typeOfId, JsonSerializationContext context) {
  *     return new JsonPrimitive(id.getValue());
  *   }
  * }

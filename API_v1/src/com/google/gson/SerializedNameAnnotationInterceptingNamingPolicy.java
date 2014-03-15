@@ -18,31 +18,36 @@ package com.google.gson;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.lang.reflect.Field;
+
 /**
- * A {@link FieldNamingStrategy2} that acts as a chain of responsibility. If the
- * {@link com.google.gson.annotations.SerializedName} annotation is applied to a
- * field then this strategy will translate the name to the {@code
- * serializedName.value()}; otherwise it delegates to the wrapped
- * {@link FieldNamingStrategy2}.
+ * A {@link FieldNamingStrategy} that acts as a chain of responsibility.  If the
+ * {@link com.google.gson.annotations.SerializedName} annotation is applied to a field then this
+ * strategy will translate the name to the {@code serializedName.value()}; otherwise it delegates
+ * to the wrapped {@link FieldNamingStrategy}.
  *
- * <p>
- * NOTE: this class performs JSON field name validation for any of the fields
- * marked with an {@code @SerializedName} annotation.
- * </p>
+ * <p>NOTE: this class performs JSON field name validation for any of the fields marked with
+ * an {@code @SerializedName} annotation.</p>
  *
  * @see SerializedName
  *
  * @author Joel Leitch
  */
-final class SerializedNameAnnotationInterceptingNamingPolicy implements FieldNamingStrategy2 {
-  private final FieldNamingStrategy2 delegate;
+class SerializedNameAnnotationInterceptingNamingPolicy implements FieldNamingStrategy {
+  private static final JsonFieldNameValidator fieldNameValidator = new JsonFieldNameValidator();
+  private final FieldNamingStrategy delegate;
 
-  SerializedNameAnnotationInterceptingNamingPolicy(FieldNamingStrategy2 delegate) {
+  public SerializedNameAnnotationInterceptingNamingPolicy(FieldNamingStrategy delegate) {
     this.delegate = delegate;
   }
 
-  public String translateName(FieldAttributes f) {
+  public String translateName(Field f) {
+    Preconditions.checkNotNull(f);
     SerializedName serializedName = f.getAnnotation(SerializedName.class);
-    return serializedName == null ? delegate.translateName(f) : serializedName.value();
+    if (serializedName != null) {
+      return fieldNameValidator.validate(serializedName.value());
+    } else {
+      return delegate.translateName(f);
+    }
   }
 }

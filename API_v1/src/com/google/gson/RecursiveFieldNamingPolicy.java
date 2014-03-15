@@ -17,8 +17,8 @@
 package com.google.gson;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.util.Collection;
 
 /**
  * A mechanism for providing custom field naming in Gson.  This allows the client code to translate
@@ -27,10 +27,11 @@ import java.util.Collection;
  *
  * @author Joel Leitch
  */
-abstract class RecursiveFieldNamingPolicy implements FieldNamingStrategy2 {
+abstract class RecursiveFieldNamingPolicy implements FieldNamingStrategy {
 
-  public final String translateName(FieldAttributes f) {
-    return translateName(f.getName(), f.getDeclaredType(), f.getAnnotations());
+  public final String translateName(Field f) {
+    Preconditions.checkNotNull(f);
+    return translateName(f.getName(), f.getGenericType(), f.getAnnotations());
   }
 
   /**
@@ -41,5 +42,5 @@ abstract class RecursiveFieldNamingPolicy implements FieldNamingStrategy2 {
    * @param annotations the annotations set on the field
    * @return the translated field name
    */
-  protected abstract String translateName(String target, Type fieldType, Collection<Annotation> annotations);
+  protected abstract String translateName(String target, Type fieldType, Annotation[] annotations);
 }

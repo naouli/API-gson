@@ -18,13 +18,12 @@ package com.google.gson;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.Collection;
 
 /**
- * A {@link FieldNamingStrategy2} that ensures the JSON field names consist of only
+ * A {@link FieldNamingStrategy} that ensures the JSON field names consist of only
  * lower case letters.
  *
- * <p>The following is an example:</p>
+ *<p>The following is an example:</p>
  * <pre>
  * class IntWrapper {
  *   public int integerField = 0;
@@ -37,14 +36,12 @@ import java.util.Collection;
  * assert("integerfield".equals(translatedFieldName));
  * </pre>
  *
- * @author Inderjeet Singh
  * @author Joel Leitch
  */
-final class LowerCaseNamingPolicy extends RecursiveFieldNamingPolicy {
+class LowerCaseNamingPolicy extends RecursiveFieldNamingPolicy {
 
   @Override
-  protected String translateName(String target, Type fieldType,
-      Collection<Annotation> annotations) {
+  protected String translateName(String target, Type fieldType, Annotation[] annotations) {
     return target.toLowerCase();
   }
 }

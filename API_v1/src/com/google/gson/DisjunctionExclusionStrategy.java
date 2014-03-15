@@ -16,9 +16,9 @@
 
 package com.google.gson;
 
-import com.google.gson.internal.$Gson$Preconditions;
-
+import java.lang.reflect.Field;
 import java.util.Collection;
+import java.util.LinkedList;
 
 /**
  * A wrapper class used to collect numerous {@link ExclusionStrategy} objects
@@ -29,11 +29,25 @@ import java.util.Collection;
 final class DisjunctionExclusionStrategy implements ExclusionStrategy {
   private final Collection<ExclusionStrategy> strategies;
 
-  DisjunctionExclusionStrategy(Collection<ExclusionStrategy> strategies) {
-    this.strategies = $Gson$Preconditions.checkNotNull(strategies);
+  public DisjunctionExclusionStrategy(ExclusionStrategy... strategies) {
+    Preconditions.checkNotNull(strategies);
+    Preconditions.checkArgument(strategies.length > 0);
+
+    this.strategies = new LinkedList<ExclusionStrategy>();
+    for (ExclusionStrategy strategy : strategies) {
+      this.strategies.add(strategy);
+    }
   }
 
-  public boolean shouldSkipField(FieldAttributes f) {
+  public DisjunctionExclusionStrategy(Collection<ExclusionStrategy> strategies) {
+    Preconditions.checkNotNull(strategies);
+    Preconditions.checkArgument(!strategies.isEmpty());
+
+    this.strategies = new LinkedList<ExclusionStrategy>();
+    this.strategies.addAll(strategies);
+  }
+
+  public boolean shouldSkipField(Field f) {
     for (ExclusionStrategy strategy : strategies) {
       if (strategy.shouldSkipField(f)) {
         return true;

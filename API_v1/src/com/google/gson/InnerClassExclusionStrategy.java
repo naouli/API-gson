@@ -16,7 +16,7 @@
 
 package com.google.gson;
 
-import java.lang.reflect.Modifier;
+import java.lang.reflect.Field;
 
 /**
  * Strategy for excluding inner classes.
@@ -25,19 +25,15 @@ import java.lang.reflect.Modifier;
  */
 final class InnerClassExclusionStrategy implements ExclusionStrategy {
 
-  public boolean shouldSkipField(FieldAttributes f) {
-    return isInnerClass(f.getDeclaredClass());
+  public boolean shouldSkipField(Field f) {
+    return isAnonymousOrLocal(f.getType());
   }
 
   public boolean shouldSkipClass(Class<?> clazz) {
-    return isInnerClass(clazz);
+    return isAnonymousOrLocal(clazz);
   }
 
-  private boolean isInnerClass(Class<?> clazz) {
-    return clazz.isMemberClass() && !isStatic(clazz);
-  }
-
-  private boolean isStatic(Class<?> clazz) {
-    return (clazz.getModifiers() & Modifier.STATIC) != 0;
+  private boolean isAnonymousOrLocal(Class<?> clazz) {
+    return clazz.isAnonymousClass() || clazz.isLocalClass();
   }
 }

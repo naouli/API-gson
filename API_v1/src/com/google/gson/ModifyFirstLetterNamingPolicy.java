@@ -16,14 +16,11 @@
 
 package com.google.gson;
 
-import com.google.gson.internal.$Gson$Preconditions;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.Collection;
 
 /**
- * A {@link FieldNamingStrategy2} that ensures the JSON field names begins with
+ * A {@link FieldNamingStrategy} that ensures the JSON field names begins with
  * an upper case letter.
  *
  *<p>The following is an example:</p>
@@ -48,7 +45,7 @@ import java.util.Collection;
  *
  * @author Joel Leitch
  */
-final class ModifyFirstLetterNamingPolicy extends RecursiveFieldNamingPolicy {
+class ModifyFirstLetterNamingPolicy extends RecursiveFieldNamingPolicy {
 
   public enum LetterModifier {
     UPPER,
@@ -64,13 +61,13 @@ final class ModifyFirstLetterNamingPolicy extends RecursiveFieldNamingPolicy {
    * @param modifier the type of modification that should be performed
    * @throws IllegalArgumentException if {@code modifier} is null
    */
-  ModifyFirstLetterNamingPolicy(LetterModifier modifier) {
-    this.letterModifier = $Gson$Preconditions.checkNotNull(modifier);
+  public ModifyFirstLetterNamingPolicy(LetterModifier modifier) {
+    Preconditions.checkNotNull(modifier);
+    this.letterModifier = modifier;
   }
 
   @Override
-  protected String translateName(String target, Type fieldType,
-      Collection<Annotation> annotations) {
+  protected String translateName(String target, Type fieldType, Annotation[] annotations) {
     StringBuilder fieldNameBuilder = new StringBuilder();
     int index = 0;
     char firstCharacter = target.charAt(index);
@@ -101,8 +98,10 @@ final class ModifyFirstLetterNamingPolicy extends RecursiveFieldNamingPolicy {
   }
 
   private String modifyString(char firstCharacter, String srcString, int indexOfSubstring) {
-    return (indexOfSubstring < srcString.length())
-        ? firstCharacter + srcString.substring(indexOfSubstring)
-        : String.valueOf(firstCharacter);
+    if (indexOfSubstring < srcString.length()) {
+      return firstCharacter + srcString.substring(indexOfSubstring);
+    } else {
+      return String.valueOf(firstCharacter);
+    }
   }
 }
